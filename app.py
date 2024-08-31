@@ -1,7 +1,6 @@
-from flask import Flask, request, send_file, render_template
-from pytube import YouTube
-from io import BytesIO
-from pydub import AudioSegment
+from flask import Flask, render_template, request, send_file
+import yt_dlp
+import os
 
 app = Flask(__name__)
 
@@ -12,17 +11,23 @@ def index():
 @app.route('/download', methods=['POST'])
 def download():
     url = request.form['url']
-    yt = YouTube(url)
-    video_url = yt.video_id
-    stream = yt.streams.filter(only_audio=True).first()
-    buffer = BytesIO()
-    stream.stream_to_buffer(buffer)
-    buffer.seek(0)
-    audio = AudioSegment.from_file(buffer, format="mp4")
-    output_buffer = BytesIO()
-    audio.export(output_buffer, format="mp3")
-    output_buffer.seek(0)
-    return send_file(output_buffer, as_attachment=True, download_name=f"{yt.title}.mp3", mimetype="audio/mpeg")
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': 'downloads/%(title)s.%(ext)s',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+    }
+    
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        filename = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
 
-if __name__ == "__main__":
+    return send_file(filename, as_attachment=True)
+
+if __name__ == '__main__':
+    if not os.path.exists('downloads'):
+        os.makedirs('downloads')
     app.run(debug=True)
