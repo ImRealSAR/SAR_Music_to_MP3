@@ -1,8 +1,9 @@
+import os
 import tkinter as tk
 from tkinter import messagebox
 from pytube import YouTube
 from moviepy.editor import AudioFileClip
-import os
+import requests
 
 def download_video_as_mp3():
     # Get the YouTube URL from the input field
@@ -16,7 +17,11 @@ def download_video_as_mp3():
         os.makedirs(output_path)
 
     try:
-        # Initialize YouTube object and download audio stream
+        # Fetch the YouTube page content using requests
+        response = requests.get(youtube_url, headers={"User-Agent": "Mozilla/5.0"})
+        response.raise_for_status()
+
+        # Initialize YouTube object with the fetched content
         yt = YouTube(youtube_url)
         audio_stream = yt.streams.filter(only_audio=True).first()
         download_path = audio_stream.download(output_path=output_path)
@@ -36,17 +41,12 @@ def download_video_as_mp3():
 # Setting up the Tkinter GUI window
 app = tk.Tk()
 app.title("YouTube to MP3 Converter")
-app.geometry("400x200")
 
-# Adding label and input field for URL
-url_label = tk.Label(app, text="Enter YouTube Video URL:")
-url_label.pack(pady=10)
+# Adding input field and button
+tk.Label(app, text="YouTube URL:").pack(pady=10)
 url_entry = tk.Entry(app, width=50)
 url_entry.pack(pady=5)
-
-# Adding download button
 download_button = tk.Button(app, text="Download as MP3", command=download_video_as_mp3)
 download_button.pack(pady=20)
 
-# Run the app
 app.mainloop()
