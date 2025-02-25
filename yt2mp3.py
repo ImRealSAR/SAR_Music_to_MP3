@@ -1,52 +1,49 @@
 import os
 import tkinter as tk
 from tkinter import messagebox
-from pytube import YouTube
-from moviepy.editor import AudioFileClip
-import requests
+import subprocess
 
-def download_video_as_mp3():
-    # Get the YouTube URL from the input field
-    youtube_url = url_entry.get().strip()
-    if not youtube_url:
-        messagebox.showerror("Error", "Please enter a valid YouTube URL.")
-        return
-
-    output_path = "downloads"  # Folder to save MP3 files
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-
+def update_yt_dlp():
+    """Automatically updates yt-dlp to the latest version."""
     try:
-        # Fetch the YouTube page content using requests
-        response = requests.get(youtube_url, headers={"User-Agent": "Mozilla/5.0"})
-        response.raise_for_status()
-
-        # Initialize YouTube object with the fetched content
-        yt = YouTube(youtube_url)
-        audio_stream = yt.streams.filter(only_audio=True).first()
-        download_path = audio_stream.download(output_path=output_path)
-
-        # Convert to MP3
-        mp3_path = os.path.splitext(download_path)[0] + ".mp3"
-        with AudioFileClip(download_path) as audio_clip:
-            audio_clip.write_audiofile(mp3_path)
-
-        # Remove original file
-        os.remove(download_path)
-
-        messagebox.showinfo("Success", f"Downloaded and saved as MP3:\n{mp3_path}")
+        subprocess.run("yt-dlp -U", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except Exception as e:
-        messagebox.showerror("Error", f"An error occurred:\n{e}")
+        messagebox.showerror("Update Error", f"Could not update yt-dlp: {str(e)}")
 
-# Setting up the Tkinter GUI window
-app = tk.Tk()
-app.title("YouTube to MP3 Converter")
+def download_mp3():
+    url = url_entry.get().strip()
+    if not url:
+        messagebox.showerror("Error", "Please enter a valid YouTube URL")
+        return
+    
+    try:
+        output_dir = "downloads"
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, "%(title)s.%(ext)s")
+        
+        command = f'yt-dlp -x --audio-format mp3 -o "{output_path}" "{url}"'
+        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        if result.returncode == 0:
+            messagebox.showinfo("Success", "Downloaded successfully! Check the 'downloads' folder.")
+        else:
+            messagebox.showerror("Download Error", result.stderr.decode("utf-8"))
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
 
-# Adding input field and button
-tk.Label(app, text="YouTube URL:").pack(pady=10)
-url_entry = tk.Entry(app, width=50)
+# GUI Setup
+root = tk.Tk()
+root.title("YouTube to MP3 Converter")
+root.geometry("400x200")
+
+# Run yt-dlp update on startup
+update_yt_dlp()
+
+tk.Label(root, text="Enter YouTube URL:").pack(pady=5)
+url_entry = tk.Entry(root, width=50)
 url_entry.pack(pady=5)
-download_button = tk.Button(app, text="Download as MP3", command=download_video_as_mp3)
+
+download_button = tk.Button(root, text="Convert to MP3", command=download_mp3)
 download_button.pack(pady=20)
 
-app.mainloop()
+root.mainloop()
